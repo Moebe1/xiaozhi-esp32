@@ -1,0 +1,16 @@
+{
+    "target": "esp32s3",
+    "builds": [
+        {
+            "name": "zzpet-s3",
+            "sdkconfig_append": [
+                "CONFIG_IDF_TARGET=\"esp32s3\"",
+                "CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y",
+                "CONFIG_SPIRAM_MODE_OCT=y",
+                "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"partitions/v2/16m.csv\"",
+                "CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y",
+                "CONFIG_LANGUAGE_EN_US=y"
+            ]
+        }
+    ]
+}

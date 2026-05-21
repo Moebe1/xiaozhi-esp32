@@ -375,11 +375,14 @@ int NoAudioCodecSimplexPdm::Read(int16_t* dest, int samples) {
     }
 
     samples = bytes_read / sizeof(int16_t);
-    if (input_gain_ > 0) {
-        int gain_factor = (int)input_gain_;
+    // Float multiplier so fractional gains (e.g. 1.1 = +10 %) work too;
+    // the previous int-cast silently truncated anything < 2.0 to a no-op.
+    if (input_gain_ > 1.0f) {
         for (int i = 0; i < samples; i++) {
-            int32_t amplified = dest[i] * gain_factor;
-            dest[i] = (amplified > INT16_MAX) ? INT16_MAX : (amplified < -INT16_MAX) ? -INT16_MAX : (int16_t)amplified;
+            float amplified = (float)dest[i] * input_gain_;
+            if (amplified > INT16_MAX) amplified = INT16_MAX;
+            else if (amplified < -INT16_MAX) amplified = -INT16_MAX;
+            dest[i] = (int16_t)amplified;
         }
     }
     return samples;
