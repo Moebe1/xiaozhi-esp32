@@ -7,7 +7,17 @@
 
 static const char *TAG = "EDARobotDogMovements";
 
-#define LEG_HOME_POSITION 90
+#define LEFT_FRONT_HOME  70
+#define LEFT_REAR_HOME   70
+#define RIGHT_FRONT_HOME 110
+#define RIGHT_REAR_HOME  110
+
+static const int LEG_HOME_POSITIONS[SERVO_COUNT] = {
+    LEFT_FRONT_HOME,
+    LEFT_REAR_HOME,
+    RIGHT_FRONT_HOME,
+    RIGHT_REAR_HOME
+};
 
 EDARobotDog::EDARobotDog() {
   is_dog_resting_ = false;
@@ -195,8 +205,8 @@ void EDARobotDog::Execute(int amplitude[SERVO_COUNT], int offset[SERVO_COUNT],
 ///////////////////////////////////////////////////////////////////
 void EDARobotDog::Home() {
   if (is_dog_resting_ == false) { // Go to rest position only if necessary
-    int homes[SERVO_COUNT] = {LEG_HOME_POSITION, LEG_HOME_POSITION,
-                              LEG_HOME_POSITION, LEG_HOME_POSITION};
+    int homes[SERVO_COUNT] = {LEFT_FRONT_HOME, LEFT_REAR_HOME,
+                              RIGHT_FRONT_HOME, RIGHT_REAR_HOME};
     MoveServos(500, homes);
     is_dog_resting_ = true;
   }
@@ -219,7 +229,7 @@ void EDARobotDog::LiftLeftFrontLeg(int period, int height) {
     if (servo_pins_[i] != -1) {
       current_pos[i] = servo_[i].GetPosition();
     } else {
-      current_pos[i] = LEG_HOME_POSITION;
+      current_pos[i] = LEG_HOME_POSITIONS[i];
     }
   }
 
@@ -235,7 +245,7 @@ void EDARobotDog::LiftLeftFrontLeg(int period, int height) {
   }
 
   // servo1.write(90);
-  current_pos[LEFT_FRONT_LEG] = 90; // servo1
+  current_pos[LEFT_FRONT_LEG] = LEFT_FRONT_HOME; // servo1
   MoveServos(100, current_pos);
 }
 
@@ -247,7 +257,7 @@ void EDARobotDog::LiftLeftRearLeg(int period, int height) {
     if (servo_pins_[i] != -1) {
       current_pos[i] = servo_[i].GetPosition();
     } else {
-      current_pos[i] = LEG_HOME_POSITION;
+      current_pos[i] = LEG_HOME_POSITIONS[i];
     }
   }
 
@@ -263,7 +273,7 @@ void EDARobotDog::LiftLeftRearLeg(int period, int height) {
   }
 
   // servo1.write(90);
-  current_pos[LEFT_REAR_LEG] = 90; // servo1
+  current_pos[LEFT_REAR_LEG] = LEFT_REAR_HOME; // servo1
   MoveServos(100, current_pos);
 }
 
@@ -275,7 +285,7 @@ void EDARobotDog::LiftRightFrontLeg(int period, int height) {
     if (servo_pins_[i] != -1) {
       current_pos[i] = servo_[i].GetPosition();
     } else {
-      current_pos[i] = LEG_HOME_POSITION;
+      current_pos[i] = LEG_HOME_POSITIONS[i];
     }
   }
 
@@ -291,7 +301,7 @@ void EDARobotDog::LiftRightFrontLeg(int period, int height) {
   }
 
   // servo1.write(90);
-  current_pos[RIGHT_FRONT_LEG] = 90; // servo1
+  current_pos[RIGHT_FRONT_LEG] = RIGHT_FRONT_HOME; // servo1
   MoveServos(100, current_pos);
 }
 
@@ -303,7 +313,7 @@ void EDARobotDog::LiftRightRearLeg(int period, int height) {
     if (servo_pins_[i] != -1) {
       current_pos[i] = servo_[i].GetPosition();
     } else {
-      current_pos[i] = LEG_HOME_POSITION;
+      current_pos[i] = LEG_HOME_POSITIONS[i];
     }
   }
 
@@ -319,7 +329,7 @@ void EDARobotDog::LiftRightRearLeg(int period, int height) {
   }
 
   // servo1.write(90);
-  current_pos[RIGHT_FRONT_LEG] = 90; // servo1
+  current_pos[RIGHT_REAR_LEG] = RIGHT_REAR_HOME; // servo1
   MoveServos(100, current_pos);
 }
 
@@ -353,7 +363,7 @@ void EDARobotDog::GetCurrentPositions(int pos[SERVO_COUNT]) {
     if (servo_pins_[i] != -1) {
       pos[i] = servo_[i].GetPosition();
     } else {
-      pos[i] = LEG_HOME_POSITION;
+      pos[i] = LEG_HOME_POSITIONS[i];
     }
   }
 }
@@ -495,7 +505,7 @@ int current_pos[SERVO_COUNT];
         if (servo_pins_[i] != -1) {
           current_pos[i] = servo_[i].GetPosition();
         } else {
-          current_pos[i] = LEG_HOME_POSITION;
+          current_pos[i] = LEG_HOME_POSITIONS[i];
         }
       }
 
@@ -519,7 +529,7 @@ int current_pos[SERVO_COUNT];
         if (servo_pins_[i] != -1) {
           current_pos[i] = servo_[i].GetPosition();
         } else {
-          current_pos[i] = LEG_HOME_POSITION;
+          current_pos[i] = LEG_HOME_POSITIONS[i];
         }
       }
 
@@ -534,7 +544,12 @@ int current_pos[SERVO_COUNT];
 void EDARobotDog::Shake(int period) {
   // 摇摆：左右摇摆身体，左前腿和右后腿运动方向相反
   int A[SERVO_COUNT] = {20, 0, 20, 0}; // 只有前腿摇摆
-  int O[SERVO_COUNT] = {0, LEG_HOME_POSITION, 0, LEG_HOME_POSITION};
+  int O[SERVO_COUNT] = {
+      LEFT_FRONT_HOME - 90,
+      LEFT_REAR_HOME - 90,
+      RIGHT_FRONT_HOME - 90,
+      RIGHT_REAR_HOME - 90
+  };
   // 左前腿和右前腿反相摇摆
   double phase_diff[SERVO_COUNT] = {DEG2RAD(180), 0, DEG2RAD(0), 0};
 
@@ -564,7 +579,7 @@ void EDARobotDog::Sleep() {
     if (servo_pins_[i] != -1) {
       current_pos[i] = servo_[i].GetPosition();
     } else {
-      current_pos[i] = LEG_HOME_POSITION;
+      current_pos[i] = LEG_HOME_POSITIONS[i];
     }
   }
 
