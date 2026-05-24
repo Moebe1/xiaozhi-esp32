@@ -2,7 +2,7 @@ menu "Xiaozhi Assistant"
 
 config OTA_URL
     string "Default OTA URL"
-    default "https://api.tenclass.net/xiaozhi/ota/"
+    default "http://192.168.0.35:8003/xiaozhi/ota/"
     help
         The application will access this URL to check for new firmwares and server address.
 
@@ -35,7 +35,7 @@ config CUSTOM_ASSETS_FILE
 
 choice
     prompt "Default Language"
-    default LANGUAGE_ZH_CN
+    default LANGUAGE_EN_US
     help
         Select device display language
 
@@ -524,6 +524,9 @@ choice BOARD_TYPE
     config BOARD_TYPE_OTTO_ROBOT
         bool "ottoRobot"
         depends on IDF_TARGET_ESP32S3
+    config BOARD_TYPE_ZZPET_S3
+        bool "ZZPET-BOT v1.2.8 (zzpet-s3)"
+        depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_ELECTRON_BOT
         bool "electronBot"
         depends on IDF_TARGET_ESP32S3
@@ -556,6 +559,9 @@ choice BOARD_TYPE
         depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_AI_VOX3
         bool "NULLLAB-AI-VOX3"
+        depends on IDF_TARGET_ESP32S3
+    config BOARD_TYPE_PROBE_GPIOS
+        bool "Probe GPIOs (diagnostic firmware — no peripherals)"
         depends on IDF_TARGET_ESP32S3
 endchoice
 
