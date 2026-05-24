@@ -26,6 +26,7 @@ mkdir -p "$LOCAL_SRC/plugins_func/functions"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/core/connection.py "$LOCAL_SRC/core/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/core/handle/sendAudioHandle.py "$LOCAL_SRC/core/handle/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/core/providers/tools/server_plugins/plugin_executor.py "$LOCAL_SRC/core/providers/tools/server_plugins/"
+cp ./xiaozhi-esp32-server/main/xiaozhi-server/core/providers/asr/base.py "$LOCAL_SRC/core/providers/asr/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/core/providers/asr/cloudflare.py "$LOCAL_SRC/core/providers/asr/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/core/providers/tts/polly.py "$LOCAL_SRC/core/providers/tts/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/get_global_weather.py "$LOCAL_SRC/plugins_func/functions/"
@@ -72,6 +73,7 @@ services:
     - ./custom_src/core/connection.py:/opt/xiaozhi-esp32-server/core/connection.py:z
     - ./custom_src/core/handle/sendAudioHandle.py:/opt/xiaozhi-esp32-server/core/handle/sendAudioHandle.py:z
     - ./custom_src/core/providers/tools/server_plugins/plugin_executor.py:/opt/xiaozhi-esp32-server/core/providers/tools/server_plugins/plugin_executor.py:z
+    - ./custom_src/core/providers/asr/base.py:/opt/xiaozhi-esp32-server/core/providers/asr/base.py:z
     - ./custom_src/core/providers/asr/cloudflare.py:/opt/xiaozhi-esp32-server/core/providers/asr/cloudflare.py:z
     - ./custom_src/core/providers/tts/polly.py:/opt/xiaozhi-esp32-server/core/providers/tts/polly.py:z
     - ./custom_src/plugins_func/functions/get_global_weather.py:/opt/xiaozhi-esp32-server/plugins_func/functions/get_global_weather.py:z
