@@ -7,6 +7,7 @@
 #include <cstring>
 #include <cJSON.h>
 #include <esp_log.h>
+#include <esp_system.h>
 #include <arpa/inet.h>
 #include "assets/lang_config.h"
 
@@ -14,9 +15,29 @@
 
 WebsocketProtocol::WebsocketProtocol() {
     event_group_handle_ = xEventGroupCreate();
+
+    esp_timer_create_args_t reconnect_args = {
+        .callback = [](void* arg) {
+            static_cast<WebsocketProtocol*>(arg)->AttemptReconnect();
+        },
+        .arg = this,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "ws_reconnect",
+        .skip_unhandled_events = false,
+    };
+    esp_timer_create(&reconnect_args, &reconnect_timer_);
 }
 
 WebsocketProtocol::~WebsocketProtocol() {
+    ESP_LOGI(TAG, "WebsocketProtocol deinit");
+    // Mark dead first so any pending scheduled callback no-ops.
+    *alive_ = false;
+    if (reconnect_timer_ != nullptr) {
+        esp_timer_stop(reconnect_timer_);
+        esp_timer_delete(reconnect_timer_);
+        reconnect_timer_ = nullptr;
+    }
+    websocket_.reset();
     vEventGroupDelete(event_group_handle_);
 }
 
@@ -77,10 +98,24 @@ bool WebsocketProtocol::IsAudioChannelOpened() const {
 
 void WebsocketProtocol::CloseAudioChannel(bool send_goodbye) {
     (void)send_goodbye;  // Websocket doesn't need to send goodbye message
+    // Explicit close — cancel any pending auto-reconnect so we don't fight it.
+    should_reconnect_ = false;
+    if (reconnect_timer_ != nullptr) {
+        esp_timer_stop(reconnect_timer_);
+    }
+    reconnect_attempts_ = 0;
+    ESP_LOGI(TAG, "CloseAudioChannel (explicit)");
     websocket_.reset();
 }
 
 bool WebsocketProtocol::OpenAudioChannel() {
+    // Cancel any pending auto-reconnect — this open is the authoritative attempt.
+    // We will re-arm should_reconnect_ on the success path at the bottom of this function.
+    should_reconnect_ = false;
+    if (reconnect_timer_ != nullptr) {
+        esp_timer_stop(reconnect_timer_);
+    }
+
     Settings settings("websocket", false);
     std::string url = settings.GetString("url");
     std::string token = settings.GetString("token");
@@ -166,9 +201,15 @@ bool WebsocketProtocol::OpenAudioChannel() {
     });
 
     websocket_->OnDisconnected([this]() {
-        ESP_LOGI(TAG, "Websocket disconnected");
+        ESP_LOGI(TAG, "Websocket disconnected (should_reconnect=%d attempts=%d free_heap=%u)",
+                 should_reconnect_.load(),
+                 reconnect_attempts_.load(),
+                 (unsigned)esp_get_free_heap_size());
         if (on_audio_channel_closed_ != nullptr) {
             on_audio_channel_closed_();
+        }
+        if (should_reconnect_.load()) {
+            ScheduleReconnect();
         }
     });
 
@@ -197,7 +238,78 @@ bool WebsocketProtocol::OpenAudioChannel() {
         on_audio_channel_opened_();
     }
 
+    // Channel is fully up — arm auto-reconnect for unexpected drops.
+    should_reconnect_ = true;
+    reconnect_attempts_ = 0;
+    ESP_LOGI(TAG, "Audio channel opened, auto-reconnect armed");
+
     return true;
+}
+
+int WebsocketProtocol::CurrentBackoffMs() const {
+    // Exponential 1s, 2s, 4s, 8s, 16s, then capped at WEBSOCKET_RECONNECT_MAX_DELAY_MS.
+    int attempt = reconnect_attempts_.load();
+    if (attempt < 0) attempt = 0;
+    if (attempt > 20) attempt = 20;  // saturate the shift
+    int delay = WEBSOCKET_RECONNECT_INITIAL_DELAY_MS << attempt;
+    if (delay > WEBSOCKET_RECONNECT_MAX_DELAY_MS || delay <= 0) {
+        delay = WEBSOCKET_RECONNECT_MAX_DELAY_MS;
+    }
+    return delay;
+}
+
+void WebsocketProtocol::ScheduleReconnect() {
+    if (!should_reconnect_.load()) {
+        return;
+    }
+    int attempt = reconnect_attempts_.load();
+    if (attempt >= WEBSOCKET_RECONNECT_MAX_RETRIES) {
+        ESP_LOGE(TAG, "WS reconnect retries exhausted (%d/%d), giving up; user must wake to reconnect",
+                 attempt, WEBSOCKET_RECONNECT_MAX_RETRIES);
+        should_reconnect_ = false;
+        return;
+    }
+    int delay_ms = CurrentBackoffMs();
+    ESP_LOGI(TAG, "WS reconnect: scheduling attempt %d/%d in %d ms",
+             attempt + 1, WEBSOCKET_RECONNECT_MAX_RETRIES, delay_ms);
+    if (reconnect_timer_ != nullptr) {
+        esp_timer_stop(reconnect_timer_);  // safety against double-arm
+        esp_timer_start_once(reconnect_timer_, (uint64_t)delay_ms * 1000);
+    }
+}
+
+void WebsocketProtocol::AttemptReconnect() {
+    // Runs in the esp_timer task. We must NOT do blocking work here.
+    // Hand off to the app event loop via Schedule, guarded by alive_.
+    if (!(*alive_) || !should_reconnect_.load()) {
+        return;
+    }
+    auto alive = alive_;
+    Application::GetInstance().Schedule([this, alive]() {
+        if (!*alive || !should_reconnect_.load()) {
+            return;
+        }
+        // Only reconnect from idle. If the app is mid-connect already, leave it alone.
+        auto state = Application::GetInstance().GetDeviceState();
+        if (state != kDeviceStateIdle) {
+            ESP_LOGI(TAG, "WS reconnect: device state=%d not idle, deferring", (int)state);
+            ScheduleReconnect();
+            return;
+        }
+        int attempt = ++reconnect_attempts_;  // bump before attempt
+        ESP_LOGI(TAG, "WS reconnect: attempt %d (free_heap=%u)",
+                 attempt, (unsigned)esp_get_free_heap_size());
+        // OpenAudioChannel clears should_reconnect_ on entry and re-arms on success.
+        // If it fails we re-arm explicitly and schedule the next try.
+        if (OpenAudioChannel()) {
+            ESP_LOGI(TAG, "WS reconnect: succeeded on attempt %d", attempt);
+            // OpenAudioChannel already set should_reconnect_=true and zeroed attempts.
+        } else {
+            ESP_LOGW(TAG, "WS reconnect: attempt %d failed", attempt);
+            should_reconnect_ = true;  // OpenAudioChannel cleared it
+            ScheduleReconnect();
+        }
+    });
 }
 
 std::string WebsocketProtocol::GetHelloMessage() {
