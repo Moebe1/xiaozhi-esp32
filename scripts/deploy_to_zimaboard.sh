@@ -37,6 +37,7 @@ cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/change_role
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/change_voice.py "$LOCAL_SRC/plugins_func/functions/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/calculator.py "$LOCAL_SRC/plugins_func/functions/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/system_status.py "$LOCAL_SRC/plugins_func/functions/"
+cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/run_custom_routine.py "$LOCAL_SRC/plugins_func/functions/"
 
 # 2. Sync files to ZimaBoard via SCP
 echo "📡 Syncing files to ZimaBoard custom_src directory..."
@@ -45,9 +46,10 @@ ssh "$ZIMA_USER@$ZIMA_IP" "mkdir -p $ZIMA_DIR/custom_src/core $ZIMA_DIR/custom_s
 scp -r "$LOCAL_SRC"/* "$ZIMA_USER@$ZIMA_IP:$ZIMA_DIR/custom_src/"
 rm -rf "$LOCAL_SRC"
 
-# Copy upgraded config.yaml to ZimaBoard data directory
-echo "📝 Copying upgraded config.yaml to ZimaBoard..."
+# Copy upgraded config.yaml and agent-base-prompt.txt to ZimaBoard data directory
+echo "📝 Copying upgraded config and prompt files to ZimaBoard..."
 scp ./xiaozhi-esp32-server/main/xiaozhi-server/data/.config.yaml "$ZIMA_USER@$ZIMA_IP:$ZIMA_DIR/data/.config.yaml"
+scp ./xiaozhi-esp32-server/main/xiaozhi-server/data/.agent-base-prompt.txt "$ZIMA_USER@$ZIMA_IP:$ZIMA_DIR/data/.agent-base-prompt.txt"
 
 # 3. Apply upgrades to docker-compose.yml on ZimaBoard
 echo "⚙️  Configuring docker-compose.yml and mapping AWS credentials..."
@@ -89,6 +91,7 @@ services:
     - ./custom_src/plugins_func/functions/change_voice.py:/opt/xiaozhi-esp32-server/plugins_func/functions/change_voice.py:z
     - ./custom_src/plugins_func/functions/calculator.py:/opt/xiaozhi-esp32-server/plugins_func/functions/calculator.py:z
     - ./custom_src/plugins_func/functions/system_status.py:/opt/xiaozhi-esp32-server/plugins_func/functions/system_status.py:z
+    - ./custom_src/plugins_func/functions/run_custom_routine.py:/opt/xiaozhi-esp32-server/plugins_func/functions/run_custom_routine.py:z
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: litellm
