@@ -49,7 +49,6 @@ cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/change_voic
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/calculator.py "$LOCAL_SRC/plugins_func/functions/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/system_status.py "$LOCAL_SRC/plugins_func/functions/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/run_custom_routine.py "$LOCAL_SRC/plugins_func/functions/"
-cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/list_voices.py "$LOCAL_SRC/plugins_func/functions/"
 
 # 2. Sync files to ZimaBoard via SCP
 echo "📡 Syncing files to ZimaBoard custom_src directory..."
@@ -105,7 +104,6 @@ services:
     - ./custom_src/plugins_func/functions/calculator.py:/opt/xiaozhi-esp32-server/plugins_func/functions/calculator.py:z
     - ./custom_src/plugins_func/functions/system_status.py:/opt/xiaozhi-esp32-server/plugins_func/functions/system_status.py:z
     - ./custom_src/plugins_func/functions/run_custom_routine.py:/opt/xiaozhi-esp32-server/plugins_func/functions/run_custom_routine.py:z
-    - ./custom_src/plugins_func/functions/list_voices.py:/opt/xiaozhi-esp32-server/plugins_func/functions/list_voices.py:z
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: litellm
