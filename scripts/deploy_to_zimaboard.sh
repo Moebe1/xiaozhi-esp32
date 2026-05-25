@@ -7,10 +7,20 @@ set -e
 ZIMA_IP="192.168.0.35"
 ZIMA_USER="mo"
 ZIMA_DIR="/home/mo/xiaozhi"
+SERVER_IMAGE_TAG="xiaozhi-esp32-server:zimaboard-local"
 
 echo "=========================================================="
 echo "🚀 UPGRADING XIAOZHI BACKEND ON ZIMABOARD ($ZIMA_IP)"
 echo "=========================================================="
+
+# 0. Ship the Dockerfile overlay and build the local image on the ZimaBoard.
+# This bakes boto3/psutil into the image so they survive container recreate
+# (vs. the prior approach of `pip install` after `docker compose up`, which
+# was wiped any time the container was recreated for an unrelated config
+# change, silently breaking Polly TTS).
+echo "🧱 Building local server image with boto3/psutil baked in..."
+scp ./scripts/Dockerfile-zimaboard-server "$ZIMA_USER@$ZIMA_IP:$ZIMA_DIR/Dockerfile-zimaboard-server"
+ssh "$ZIMA_USER@$ZIMA_IP" "cd $ZIMA_DIR && docker build -t $SERVER_IMAGE_TAG -f Dockerfile-zimaboard-server ."
 
 # 1. Create a temporary source folder locally to prepare sync
 echo "📁 Preparing custom source files locally..."
@@ -39,6 +49,7 @@ cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/change_voic
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/calculator.py "$LOCAL_SRC/plugins_func/functions/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/system_status.py "$LOCAL_SRC/plugins_func/functions/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/run_custom_routine.py "$LOCAL_SRC/plugins_func/functions/"
+cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/list_voices.py "$LOCAL_SRC/plugins_func/functions/"
 
 # 2. Sync files to ZimaBoard via SCP
 echo "📡 Syncing files to ZimaBoard custom_src directory..."
@@ -62,7 +73,7 @@ ssh "$ZIMA_USER@$ZIMA_IP" "bash -s" << 'EOF'
   cat << 'DOCKER' > docker-compose.yml
 services:
   xiaozhi-esp32-server:
-    image: ghcr.io/xinnan-tech/xiaozhi-esp32-server:server_latest
+    image: xiaozhi-esp32-server:zimaboard-local
     container_name: xiaozhi-esp32-server
     restart: always
     security_opt:
@@ -94,17 +105,24 @@ services:
     - ./custom_src/plugins_func/functions/calculator.py:/opt/xiaozhi-esp32-server/plugins_func/functions/calculator.py:z
     - ./custom_src/plugins_func/functions/system_status.py:/opt/xiaozhi-esp32-server/plugins_func/functions/system_status.py:z
     - ./custom_src/plugins_func/functions/run_custom_routine.py:/opt/xiaozhi-esp32-server/plugins_func/functions/run_custom_routine.py:z
+    - ./custom_src/plugins_func/functions/list_voices.py:/opt/xiaozhi-esp32-server/plugins_func/functions/list_voices.py:z
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: litellm
     restart: unless-stopped
     environment:
+    # Polly TTS still uses AWS — keep these.
     - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
     - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
     - AWS_REGION_NAME=${AWS_REGION_NAME}
+    # LLM is now Ollama Cloud (Gemma 4 31B cloud variant).
+    # Native function-calling support; ~76.9% Tau2 vs Haiku ~mid-50s.
+    - OLLAMA_API_KEY=${OLLAMA_API_KEY}
     command:
     - --model
-    - bedrock/converse/au.anthropic.claude-haiku-4-5-20251001-v1:0
+    - ollama_chat/gemma4:31b-cloud
+    - --api_base
+    - https://ollama.com
     - --host
     - 0.0.0.0
     - --port
@@ -117,9 +135,6 @@ DOCKER
 
   echo "⏳ Waiting for container boot..."
   sleep 3
-
-  echo "📦 Installing boto3 and psutil dependencies inside the server container..."
-  docker exec -t xiaozhi-esp32-server pip install boto3 psutil -i https://pypi.org/simple
 EOF
 
 echo "=========================================================="
