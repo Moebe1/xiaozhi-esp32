@@ -1,0 +1,9 @@
+# Thin overlay on top of xinnan-tech's xiaozhi-esp32-server image.
+# Bakes the runtime Python deps Mo's custom overrides need so they survive
+# container recreates (previously: `pip install boto3 psutil` was run by the
+# deploy script after `docker compose up`, and any recreate would wipe it,
+# breaking Polly TTS until the next deploy).
+ARG BASE_IMAGE=ghcr.io/xinnan-tech/xiaozhi-esp32-server:server_latest
+FROM ${BASE_IMAGE}
+
+RUN pip install --no-cache-dir boto3 psutil

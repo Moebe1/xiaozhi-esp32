@@ -510,6 +510,7 @@ void Application::InitializeProtocol() {
     });
     
     protocol_->OnAudioChannelClosed([this, &board]() {
+        ESP_LOGI(TAG, "OnAudioChannelClosed: device_state=%d -> Idle", (int)GetDeviceState());
         board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
         Schedule([this]() {
             auto display = Board::GetInstance().GetDisplay();
