@@ -25,6 +25,7 @@ mkdir -p "$LOCAL_SRC/plugins_func/functions"
 
 # Copy connection handlers, executors, audio handlers, new providers & plugins into the sync tree
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/core/connection.py "$LOCAL_SRC/core/"
+cp ./xiaozhi-esp32-server/main/xiaozhi-server/core/websocket_server.py "$LOCAL_SRC/core/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/core/handle/sendAudioHandle.py "$LOCAL_SRC/core/handle/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/core/utils/util.py "$LOCAL_SRC/core/utils/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/core/providers/tools/server_plugins/plugin_executor.py "$LOCAL_SRC/core/providers/tools/server_plugins/"
@@ -37,6 +38,7 @@ cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/change_role
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/change_voice.py "$LOCAL_SRC/plugins_func/functions/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/calculator.py "$LOCAL_SRC/plugins_func/functions/"
 cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/system_status.py "$LOCAL_SRC/plugins_func/functions/"
+cp ./xiaozhi-esp32-server/main/xiaozhi-server/plugins_func/functions/run_custom_routine.py "$LOCAL_SRC/plugins_func/functions/"
 
 # 2. Sync files to ZimaBoard via SCP
 echo "📡 Syncing files to ZimaBoard custom_src directory..."
@@ -45,9 +47,10 @@ ssh "$ZIMA_USER@$ZIMA_IP" "mkdir -p $ZIMA_DIR/custom_src/core $ZIMA_DIR/custom_s
 scp -r "$LOCAL_SRC"/* "$ZIMA_USER@$ZIMA_IP:$ZIMA_DIR/custom_src/"
 rm -rf "$LOCAL_SRC"
 
-# Copy upgraded config.yaml to ZimaBoard data directory
-echo "📝 Copying upgraded config.yaml to ZimaBoard..."
+# Copy upgraded config.yaml and agent-base-prompt.txt to ZimaBoard data directory
+echo "📝 Copying upgraded config and prompt files to ZimaBoard..."
 scp ./xiaozhi-esp32-server/main/xiaozhi-server/data/.config.yaml "$ZIMA_USER@$ZIMA_IP:$ZIMA_DIR/data/.config.yaml"
+scp ./xiaozhi-esp32-server/main/xiaozhi-server/data/.agent-base-prompt.txt "$ZIMA_USER@$ZIMA_IP:$ZIMA_DIR/data/.agent-base-prompt.txt"
 
 # 3. Apply upgrades to docker-compose.yml on ZimaBoard
 echo "⚙️  Configuring docker-compose.yml and mapping AWS credentials..."
@@ -77,6 +80,7 @@ services:
     - ./data:/opt/xiaozhi-esp32-server/data:z
     - ./models/SenseVoiceSmall/model.pt:/opt/xiaozhi-esp32-server/models/SenseVoiceSmall/model.pt:z
     - ./custom_src/core/connection.py:/opt/xiaozhi-esp32-server/core/connection.py:z
+    - ./custom_src/core/websocket_server.py:/opt/xiaozhi-esp32-server/core/websocket_server.py:z
     - ./custom_src/core/handle/sendAudioHandle.py:/opt/xiaozhi-esp32-server/core/handle/sendAudioHandle.py:z
     - ./custom_src/core/utils/util.py:/opt/xiaozhi-esp32-server/core/utils/util.py:z
     - ./custom_src/core/providers/tools/server_plugins/plugin_executor.py:/opt/xiaozhi-esp32-server/core/providers/tools/server_plugins/plugin_executor.py:z
@@ -89,6 +93,7 @@ services:
     - ./custom_src/plugins_func/functions/change_voice.py:/opt/xiaozhi-esp32-server/plugins_func/functions/change_voice.py:z
     - ./custom_src/plugins_func/functions/calculator.py:/opt/xiaozhi-esp32-server/plugins_func/functions/calculator.py:z
     - ./custom_src/plugins_func/functions/system_status.py:/opt/xiaozhi-esp32-server/plugins_func/functions/system_status.py:z
+    - ./custom_src/plugins_func/functions/run_custom_routine.py:/opt/xiaozhi-esp32-server/plugins_func/functions/run_custom_routine.py:z
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: litellm
